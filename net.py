@@ -16,7 +16,7 @@ from subnet import *
 import torchac
 
 def save_model(model, iter):
-    torch.save(model.state_dict(), "./snapshot/iter{}.model".format(iter))
+    torch.save(model.state_dict(), "autodl-tmp/snapshot/iter{}.model".format(iter))
 
 def load_model(model, f):
     with open(f, 'rb') as f:
@@ -39,7 +39,7 @@ class VideoCompressor(nn.Module):
     def __init__(self):
         super(VideoCompressor, self).__init__()
         # self.imageCompressor = ImageCompressor()
-        self.opticFlow = ME_Spynet()
+        self.opticFlow =LiteFlowNet3()#ME_Spynet()
         self.mvEncoder = Analysis_mv_net()
         self.Q = None
         self.mvDecoder = Synthesis_mv_net()
@@ -69,13 +69,14 @@ class VideoCompressor(nn.Module):
 
     def forward(self, input_image, referframe, quant_noise_feature=None, quant_noise_z=None, quant_noise_mv=None):
         estmv = self.opticFlow(input_image, referframe)
+        estmv=torch.nn.functional.interpolate(estmv, size=(input_image.shape[2],input_image.shape[3]), mode='bilinear', align_corners=False).cuda()
         mvfeature = self.mvEncoder(estmv)
         if self.training:
             quant_mv = mvfeature + quant_noise_mv
         else:
             quant_mv = torch.round(mvfeature)
         quant_mv_upsample = self.mvDecoder(quant_mv)
-
+        
         prediction, warpframe = self.motioncompensation(referframe, quant_mv_upsample)
 
         input_residual = input_image - prediction
@@ -217,4 +218,3 @@ class VideoCompressor(nn.Module):
         bpp = bpp_feature + bpp_z + bpp_mv
         
         return clipped_recon_image, mse_loss, warploss, interloss, bpp_feature, bpp_z, bpp_mv, bpp
-        

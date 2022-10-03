@@ -17,7 +17,7 @@ from subnet.ms_ssim_torch import ms_ssim
 from augmentation import random_flip, random_crop_and_pad_image_and_labels
 
 class UVGDataSet(data.Dataset):
-    def __init__(self, root="data/UVG/images/", filelist="data/UVG/originalv.txt", refdir='L12000', testfull=False):
+    def __init__(self, root="autodl-tmp/data/UVG/images/", filelist="autodl-tmp/data/UVG/originalv.txt", refdir='H265L23', testfull=False):
         with open(filelist) as f:
             folders = f.readlines()
         self.ref = []
@@ -26,6 +26,7 @@ class UVGDataSet(data.Dataset):
         self.hevcclass = []
         AllIbpp = self.getbpp(refdir)
         ii = 0
+        print(folders)
         for folder in folders:
             seq = folder.rstrip()
             seqIbpp = AllIbpp[ii]
@@ -39,6 +40,8 @@ class UVGDataSet(data.Dataset):
             else:
                 framerange = 1
             for i in range(framerange):
+                if i*12+1+12>=600:
+                    break
                 refpath = os.path.join(root, seq, refdir, 'im'+str(i * 12 + 1).zfill(4)+'.png')
                 inputpath = []
                 for j in range(12):
@@ -48,21 +51,20 @@ class UVGDataSet(data.Dataset):
                 self.input.append(inputpath)
             ii += 1
 
-
     def getbpp(self, ref_i_folder):
         Ibpp = None
         if ref_i_folder == 'H265L20':
             print('use H265L20')
-            Ibpp = []# you need to fill bpps after generating crf=20
+            Ibpp = [1.5809944058641974]# you need to fill bpps after generating crf=20
         elif ref_i_folder == 'H265L23':
             print('use H265L23')
-            Ibpp = []# you need to fill bpps after generating crf=23
+            Ibpp = [1.1798924575617284]# you need to fill bpps after generating crf=23
         elif ref_i_folder == 'H265L26':
             print('use H265L26')
-            Ibpp = []# you need to fill bpps after generating crf=26
+            Ibpp = [0.8653549382716049]# you need to fill bpps after generating crf=26
         elif ref_i_folder == 'H265L29':
             print('use H265L29')
-            Ibpp = []# you need to fill bpps after generating crf=29
+            Ibpp = [0.6269290123456791]# you need to fill bpps after generating crf=29
         else:
             print('cannot find ref : ', ref_i_folder)
             exit()
@@ -95,7 +97,7 @@ class UVGDataSet(data.Dataset):
         return input_images, ref_image, self.refbpp[index], refpsnr, refmsssim
 
 class DataSet(data.Dataset):
-    def __init__(self, path="data/vimeo_septuplet/test.txt", im_height=256, im_width=256):
+    def __init__(self, path="autodl-tmp/data/vimeo_septuplet/test.txt", im_height=256, im_width=256):
         self.image_input_list, self.image_ref_list = self.get_vimeo(filefolderlist=path)
         self.im_height = im_height
         self.im_width = im_width
@@ -105,7 +107,7 @@ class DataSet(data.Dataset):
         self.mvnois = torch.zeros([out_channel_mv, self.im_height // 16, self.im_width // 16])
         print("dataset find image: ", len(self.image_input_list))
 
-    def get_vimeo(self, rootdir="data/vimeo_septuplet/sequences/", filefolderlist="data/vimeo_septuplet/test.txt"):
+    def get_vimeo(self, rootdir="autodl-tmp/data/vimeo_septuplet/sequences/", filefolderlist="autodl-tmp/data/vimeo_septuplet/test.txt"):
         with open(filefolderlist) as f:
             data = f.readlines()
             

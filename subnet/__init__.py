@@ -9,3 +9,4 @@ from .endecoder import ME_Spynet, flow_warp, Warp_net
 from .bitEstimator import BitEstimator
 from .basics import *
 from .ms_ssim_torch import ms_ssim, ssim
+from .liteflownet3 import LiteFlowNet3

@@ -1,4 +1,3 @@
-
 import os
 import argparse
 import torch
@@ -16,15 +15,20 @@ import sys
 import math
 import json
 from dataset import DataSet, UVGDataSet
+from drawuvg import uvgdrawplt
 from tensorboardX import SummaryWriter
 from drawuvg import uvgdrawplt
+import cv2
+
+
 torch.backends.cudnn.enabled = True
+torch.set_grad_enabled(True)
 # gpu_num = 4
 gpu_num = torch.cuda.device_count()
 cur_lr = base_lr = 1e-4#  * gpu_num
 train_lambda = 2048
-print_step = 100
-cal_step = 10
+print_step = 100 #原来为100
+cal_step = 100  #原来为10
 # print_step = 10
 warmup_step = 0#  // gpu_num
 gpu_per_batch = 4
@@ -94,18 +98,23 @@ def Var(x):
     return Variable(x.cuda())
 
 def testuvg(global_step, testfull=False):
+    faceDetector = cv2.FaceDetectorYN_create(model='yunet.onnx', config='', input_size=(1280, 704))
     with torch.no_grad():
         test_loader = DataLoader(dataset=test_dataset, shuffle=False, num_workers=0, batch_size=1, pin_memory=True)
         net.eval()
         sumbpp = 0
         sumpsnr = 0
         summsssim = 0
+        sumpsnr_roi = 0
+        summsssiom_roi = 0
+        
         cnt = 0
         for batch_idx, input in enumerate(test_loader):
-            if batch_idx % 10 == 0:
+            if batch_idx % 100 == 0:
                 print("testing : %d/%d"% (batch_idx, len(test_loader)))
             input_images = input[0]
             ref_image = input[1]
+            #print(input_images.size(),ref_image.size())
             ref_bpp = input[2]
             ref_psnr = input[3]
             ref_msssim = input[4]
@@ -123,6 +132,8 @@ def testuvg(global_step, testfull=False):
                 summsssim += ms_ssim(clipped_recon_image.cpu().detach(), input_image, data_range=1.0, size_average=True).numpy()
                 cnt += 1
                 ref_image = clipped_recon_image
+            img = torchvision.transforms.ToPILImage()(ref_image[0])
+            img.save('autodl-tmp/demo/{}.png'.format(batch_idx))  
         log = "global step %d : " % (global_step) + "\n"
         logger.info(log)
         sumbpp /= cnt
@@ -131,7 +142,6 @@ def testuvg(global_step, testfull=False):
         log = "UVGdataset : average bpp : %.6lf, average psnr : %.6lf, average msssim: %.6lf\n" % (sumbpp, sumpsnr, summsssim)
         logger.info(log)
         uvgdrawplt([sumbpp], [sumpsnr], [summsssim], global_step, testfull=testfull)
-
 
 def train(epoch, global_step):
 
@@ -270,7 +280,7 @@ if __name__ == "__main__":
         exit(0)
 
     tb_logger = SummaryWriter('./events')
-    train_dataset = DataSet("data/vimeo_septuplet/test.txt")
+    train_dataset = DataSet("autodl-tmp/data/vimeo_septuplet/test.txt")
     # test_dataset = UVGDataSet(refdir=ref_i_dir)
     stepoch = global_step // (train_dataset.__len__() // (gpu_per_batch))# * gpu_num))
     for epoch in range(stepoch, tot_epoch):
